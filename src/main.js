@@ -164,26 +164,45 @@ function initCharts() {
   if (compositionChart) compositionChart.destroy();
 
   const macroOptions = {
-    chart: { type: 'area', height: 350, toolbar: { show: false }, zoom: { enabled: false } },
+    chart: { 
+      type: 'area', 
+      height: 350, 
+      toolbar: { show: true }, 
+      zoom: { enabled: true },
+      background: 'transparent'
+    },
+    theme: { mode: 'dark' },
     series: [],
     xaxis: { type: 'datetime' },
     stroke: { curve: 'smooth', width: 2 },
-    colors: ['#6366f1', '#10b981', '#f59e0b', '#ef4444'],
-    legend: { position: 'top' }
+    colors: ['#818cf8', '#34d399', '#fbbf24', '#f87171'],
+    legend: { 
+      position: 'top',
+      horizontalAlign: 'center',
+      onItemClick: { toggleDataSeries: true }
+    },
+    grid: { borderColor: '#374151' }
   };
   macroChart = new ApexCharts(document.querySelector("#macro-chart"), macroOptions);
   macroChart.render();
 
   const compOptions = {
-    chart: { type: 'line', height: 350, toolbar: { show: false } },
+    chart: { 
+      type: 'line', 
+      height: 350, 
+      toolbar: { show: true },
+      background: 'transparent'
+    },
+    theme: { mode: 'dark' },
     series: [],
     xaxis: { type: 'datetime' },
     yaxis: [
-      { title: { text: "Weight / Muscle (kg)" } },
-      { opposite: true, title: { text: "Body Fat %" } }
+      { title: { text: "Weight / Muscle (kg)", style: { color: '#9ca3af' } } },
+      { opposite: true, title: { text: "Body Fat %", style: { color: '#9ca3af' } } }
     ],
     stroke: { curve: 'smooth', width: [3, 3, 2] },
-    colors: ['#3b82f6', '#8b5cf6', '#f43f5e']
+    colors: ['#60a5fa', '#a78bfa', '#fb7185'],
+    grid: { borderColor: '#374151' }
   };
   compositionChart = new ApexCharts(document.querySelector("#composition-chart"), compOptions);
   compositionChart.render();

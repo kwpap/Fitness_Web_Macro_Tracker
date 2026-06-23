@@ -32,7 +32,9 @@ export const parseLog = (text) => {
 
   // 2. Parse Calories / kcal
   // Handles "2,367", "1925", etc.
-  const calMatch = text.match(/(?:Calories|kcal):?\s*\*\*?\s*([\d,]+)/i) || text.match(/([\d,]+)\s*(?:Calories|kcal)/i);
+  // Prioritize the value before the slash or "Total Calories"
+  const calMatch = text.match(/Calories:\s*\*\*?\s*([\d,]+)/i) || 
+                   text.match(/([\d,]+)\s*(?:\/\s*[\d,]+\s*)?(?:Calories|kcal)/i);
   if (calMatch) {
     data.calories = parseInt(calMatch[1].replace(/,/g, ""), 10);
   }
