@@ -8,7 +8,15 @@ import ApexCharts from 'apexcharts';
 // --- State ---
 let currentUser = null;
 let macroChart = null;
+let calWeightChart = null;
+let proteinMuscleChart = null;
 let compositionChart = null;
+let userSettings = {
+  avgKcalTarget: 2500,
+  suggestedKcalTarget: 2000,
+  proteinFloor: 150,
+  carbsCeiling: 20
+};
 
 // --- DOM Elements ---
 const authScreen = document.getElementById('auth-screen');
@@ -38,6 +46,11 @@ const openDietologistBtn = document.getElementById('open-dietologist-btn');
 const closeDietologistBtn = document.getElementById('close-dietologist-btn');
 const dietologistForm = document.getElementById('dietologist-form');
 
+const settingsModal = document.getElementById('settings-modal');
+const settingsBtn = document.getElementById('settings-btn');
+const closeSettingsBtn = document.getElementById('close-settings-btn');
+const settingsForm = document.getElementById('settings-form');
+
 const snapshotContent = document.getElementById('snapshot-content');
 
 // --- Auth Logic ---
@@ -51,6 +64,7 @@ if (auth) {
       authScreen.classList.add('hidden');
       dashboardShell.classList.remove('hidden');
       initCharts();
+      loadUserSettings();
       loadLogs();
     } else {
       currentUser = null;
@@ -74,6 +88,46 @@ loginForm?.addEventListener('submit', async (e) => {
 });
 
 logoutBtn?.addEventListener('click', () => signOut(auth));
+
+// --- Settings Logic ---
+settingsBtn?.addEventListener('click', () => {
+  document.getElementById('setting-avg-kcal').value = userSettings.avgKcalTarget;
+  document.getElementById('setting-suggested-kcal').value = userSettings.suggestedKcalTarget;
+  document.getElementById('setting-protein-floor').value = userSettings.proteinFloor;
+  document.getElementById('setting-carbs-ceiling').value = userSettings.carbsCeiling;
+  settingsModal.classList.remove('hidden');
+});
+
+closeSettingsBtn?.addEventListener('click', () => settingsModal.classList.add('hidden'));
+
+settingsForm?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const newSettings = {
+    avgKcalTarget: parseInt(document.getElementById('setting-avg-kcal').value),
+    suggestedKcalTarget: parseInt(document.getElementById('setting-suggested-kcal').value),
+    proteinFloor: parseInt(document.getElementById('setting-protein-floor').value),
+    carbsCeiling: parseInt(document.getElementById('setting-carbs-ceiling').value)
+  };
+
+  try {
+    await setDoc(doc(db, 'user_settings', currentUser.uid), newSettings);
+    userSettings = newSettings;
+    settingsModal.classList.add('hidden');
+    // Refresh UI/Charts
+    loadLogs(); 
+  } catch (err) {
+    console.error("Error saving settings:", err);
+  }
+});
+
+async function loadUserSettings() {
+  const docRef = doc(db, 'user_settings', currentUser.uid);
+  onSnapshot(docRef, (docSnap) => {
+    if (docSnap.exists()) {
+      userSettings = docSnap.data();
+    }
+  });
+}
 
 // --- Parser Logic ---
 parseLogBtn?.addEventListener('click', () => {
@@ -160,114 +214,180 @@ dietologistForm?.addEventListener('submit', async (e) => {
 
 // --- Charts & Data Logic ---
 function initCharts() {
-  if (macroChart) macroChart.destroy();
-  if (compositionChart) compositionChart.destroy();
-
-  const macroOptions = {
-    chart: { 
-      type: 'area', 
-      height: 350, 
-      toolbar: { show: true }, 
-      zoom: { enabled: true },
-      background: 'transparent'
-    },
+  const chartCommon = {
+    chart: { height: 350, toolbar: { show: true }, background: 'transparent' },
     theme: { mode: 'dark' },
-    series: [],
     xaxis: { type: 'datetime' },
-    stroke: { curve: 'smooth', width: 2 },
-    colors: ['#818cf8', '#34d399', '#fbbf24', '#f87171'],
-    legend: { 
-      position: 'top',
-      horizontalAlign: 'center',
-      onItemClick: { toggleDataSeries: true }
-    },
-    grid: { borderColor: '#374151' }
+    grid: { borderColor: '#374151' },
+    legend: { position: 'top', onItemClick: { toggleDataSeries: true } }
   };
-  macroChart = new ApexCharts(document.querySelector("#macro-chart"), macroOptions);
+
+  if (macroChart) macroChart.destroy();
+  macroChart = new ApexCharts(document.querySelector("#macro-chart"), {
+    ...chartCommon,
+    chart: { ...chartCommon.chart, type: 'line' },
+    series: [],
+    yaxis: [
+      { title: { text: "Calories (kcal)", style: { color: '#818cf8' } } },
+      { opposite: true, title: { text: "Macros (g)", style: { color: '#34d399' } } }
+    ],
+    colors: ['#818cf8', '#34d399', '#fbbf24', '#f87171'],
+    stroke: { width: [3, 2, 2, 2], curve: 'smooth' }
+  });
   macroChart.render();
 
-  const compOptions = {
-    chart: { 
-      type: 'line', 
-      height: 350, 
-      toolbar: { show: true },
-      background: 'transparent'
-    },
-    theme: { mode: 'dark' },
+  if (calWeightChart) calWeightChart.destroy();
+  calWeightChart = new ApexCharts(document.querySelector("#cal-weight-chart"), {
+    ...chartCommon,
+    chart: { ...chartCommon.chart, type: 'line' },
     series: [],
-    xaxis: { type: 'datetime' },
     yaxis: [
-      { title: { text: "Weight / Muscle (kg)", style: { color: '#9ca3af' } } },
-      { opposite: true, title: { text: "Body Fat %", style: { color: '#9ca3af' } } }
+      { title: { text: "Calories (kcal)", style: { color: '#818cf8' } } },
+      { opposite: true, title: { text: "Weight (kg)", style: { color: '#60a5fa' } } }
     ],
-    stroke: { curve: 'smooth', width: [3, 3, 2] },
+    colors: ['#818cf8', '#60a5fa'],
+    annotations: {
+      yaxis: [
+        { y: 2500, borderColor: '#ef4444', label: { text: 'Avg Target', style: { color: '#fff', background: '#ef4444' } } },
+        { y: 2000, borderColor: '#10b981', label: { text: 'Nutritionist', style: { color: '#fff', background: '#10b981' } } }
+      ]
+    }
+  });
+  calWeightChart.render();
+
+  if (proteinMuscleChart) proteinMuscleChart.destroy();
+  proteinMuscleChart = new ApexCharts(document.querySelector("#protein-muscle-chart"), {
+    ...chartCommon,
+    chart: { ...chartCommon.chart, type: 'area' },
+    series: [],
+    yaxis: [
+      { title: { text: "Protein (g)", style: { color: '#34d399' } } },
+      { opposite: true, title: { text: "Lean Muscle (kg)", style: { color: '#a78bfa' } } }
+    ],
+    colors: ['#34d399', '#a78bfa'],
+    annotations: {
+      yaxis: [{ y: 150, borderColor: '#f59e0b', label: { text: 'Min Protein', style: { color: '#fff', background: '#f59e0b' } } }]
+    }
+  });
+  proteinMuscleChart.render();
+
+  if (compositionChart) compositionChart.destroy();
+  compositionChart = new ApexCharts(document.querySelector("#composition-chart"), {
+    ...chartCommon,
+    chart: { ...chartCommon.chart, type: 'line' },
+    series: [],
+    yaxis: [
+      { title: { text: "Mass (kg)", style: { color: '#9ca3af' } } },
+      { opposite: true, title: { text: "Fat %", style: { color: '#fb7185' } } }
+    ],
     colors: ['#60a5fa', '#a78bfa', '#fb7185'],
-    grid: { borderColor: '#374151' }
-  };
-  compositionChart = new ApexCharts(document.querySelector("#composition-chart"), compOptions);
+    stroke: { width: [2, 2, 3] }
+  });
   compositionChart.render();
 }
 
 function loadLogs() {
-  const qLogs = query(collection(db, 'daily_logs'), orderBy('date', 'asc'));
-  onSnapshot(qLogs, (snapshot) => {
-    const logs = snapshot.docs.map(doc => doc.data());
-    updateMacroChart(logs.filter(l => l.userId === currentUser.uid));
-    updateSnapshot(logs.filter(l => l.userId === currentUser.uid));
-  });
+  // Sync state for logs
+  const logsRef = collection(db, 'daily_logs');
+  const dLogsRef = collection(db, 'dietologist_logs');
 
-  const qDiet = query(collection(db, 'dietologist_logs'), orderBy('date', 'asc'));
-  onSnapshot(qDiet, (snapshot) => {
-    const dLogs = snapshot.docs.map(doc => doc.data());
-    updateCompChart(dLogs.filter(l => l.userId === currentUser.uid));
+  const qLogs = query(logsRef, orderBy('date', 'asc'));
+  const qDLogs = query(dLogsRef, orderBy('date', 'asc'));
+
+  onSnapshot(qLogs, (snapLogs) => {
+    const logs = snapLogs.docs.map(d => d.data()).filter(l => l.userId === currentUser.uid);
+    onSnapshot(qDLogs, (snapDLogs) => {
+      const dLogs = snapDLogs.docs.map(d => d.data()).filter(l => l.userId === currentUser.uid);
+      updateAllVisuals(logs, dLogs);
+    });
   });
+}
+
+function updateAllVisuals(logs, dLogs) {
+  updateMacroChart(logs);
+  updateCalWeightChart(logs, dLogs);
+  updateProteinMuscleChart(logs, dLogs);
+  updateCompChart(dLogs);
+  updateSnapshot(logs);
 }
 
 function updateMacroChart(logs) {
   if (!macroChart) return;
-  const series = [
+  macroChart.updateSeries([
     { name: 'Kcal', data: logs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.calories })) },
     { name: 'Protein', data: logs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.protein })) },
     { name: 'Net Carbs', data: logs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.netCarbs })) },
     { name: 'Fat', data: logs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.fat })) }
-  ];
-  macroChart.updateSeries(series);
+  ]);
+}
+
+function updateCalWeightChart(logs, dLogs) {
+  if (!calWeightChart) return;
+  const calData = logs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.calories }));
+  const weightData = dLogs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.weight }));
+  
+  calWeightChart.updateOptions({
+    annotations: {
+      yaxis: [
+        { y: userSettings.avgKcalTarget, borderColor: '#ef4444', label: { text: `Target ${userSettings.avgKcalTarget}`, style: { color: '#fff', background: '#ef4444' } } },
+        { y: userSettings.suggestedKcalTarget, borderColor: '#10b981', label: { text: `Suggested ${userSettings.suggestedKcalTarget}`, style: { color: '#fff', background: '#10b981' } } }
+      ]
+    }
+  });
+  calWeightChart.updateSeries([
+    { name: 'Calories', data: calData },
+    { name: 'Weight', data: weightData }
+  ]);
+}
+
+function updateProteinMuscleChart(logs, dLogs) {
+  if (!proteinMuscleChart) return;
+  const proteinData = logs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.protein }));
+  const muscleData = dLogs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.leanMuscle }));
+
+  proteinMuscleChart.updateOptions({
+    annotations: {
+      yaxis: [{ y: userSettings.proteinFloor, borderColor: '#f59e0b', label: { text: `Floor ${userSettings.proteinFloor}g`, style: { color: '#fff', background: '#f59e0b' } } }]
+    }
+  });
+  proteinMuscleChart.updateSeries([
+    { name: 'Protein (g)', data: proteinData },
+    { name: 'Lean Muscle (kg)', data: muscleData }
+  ]);
 }
 
 function updateCompChart(dLogs) {
   if (!compositionChart) return;
-  const series = [
-    { name: 'Weight', type: 'line', data: dLogs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.weight })) },
-    { name: 'Lean Muscle', type: 'line', data: dLogs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.leanMuscle })) },
-    { name: 'Body Fat %', type: 'area', data: dLogs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.fatPercent })) }
-  ];
-  compositionChart.updateSeries(series);
+  compositionChart.updateSeries([
+    { name: 'Weight', data: dLogs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.weight })) },
+    { name: 'Muscle', data: dLogs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.totalMuscle })) },
+    { name: 'Body Fat %', data: dLogs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.fatPercent })) }
+  ]);
 }
 
 function updateSnapshot(logs) {
   if (logs.length === 0) return;
   const last = logs[logs.length - 1];
-  const proteinGoal = 150;
-  const carbsGoal = 20;
   
-  const proteinOk = last.protein >= proteinGoal;
-  const carbsOk = last.netCarbs <= carbsGoal;
+  const proteinOk = last.protein >= userSettings.proteinFloor;
+  const carbsOk = last.netCarbs <= userSettings.carbsCeiling;
 
   if (snapshotContent) {
     snapshotContent.innerHTML = `
-      <div class="flex justify-between items-center">
-        <span class="text-gray-500 font-medium">Calories</span>
-        <span class="text-xl font-bold">${last.calories} <small class="text-gray-400 font-normal">kcal</small></span>
+      <div class="flex justify-between items-center py-2 border-b border-slate-800">
+        <span class="text-slate-400 font-medium">Calories</span>
+        <span class="text-xl font-bold text-indigo-400">${last.calories} <small class="text-slate-500 font-normal">kcal</small></span>
       </div>
-      <div class="flex justify-between items-center">
-        <span class="text-gray-500 font-medium">Protein</span>
-        <span class="font-bold ${proteinOk ? 'text-green-600' : 'text-orange-500'}">${last.protein}g / ${proteinGoal}g</span>
+      <div class="flex justify-between items-center py-2 border-b border-slate-800">
+        <span class="text-slate-400 font-medium">Protein</span>
+        <span class="font-bold ${proteinOk ? 'text-emerald-400' : 'text-amber-500'}">${last.protein}g / ${userSettings.proteinFloor}g</span>
       </div>
-      <div class="flex justify-between items-center">
-        <span class="text-gray-500 font-medium">Net Carbs</span>
-        <span class="font-bold ${carbsOk ? 'text-green-600' : 'text-red-500'}">${last.netCarbs}g / ${carbsGoal}g</span>
+      <div class="flex justify-between items-center py-2 border-b border-slate-800">
+        <span class="text-slate-400 font-medium">Net Carbs</span>
+        <span class="font-bold ${carbsOk ? 'text-emerald-400' : 'text-rose-500'}">${last.netCarbs}g / ${userSettings.carbsCeiling}g</span>
       </div>
-      <div class="mt-4 p-3 bg-gray-50 rounded text-xs text-gray-400 truncate">
+      <div class="mt-4 p-3 bg-slate-800/50 rounded-lg text-xs text-slate-400">
+        <div class="font-bold mb-1 uppercase tracking-widest text-[10px] text-slate-500">Last Meal Log</div>
         ${last.foodsTracked || 'No foods listed'}
       </div>
     `;

@@ -37,7 +37,15 @@
             <h1 class="text-xl font-bold text-slate-100">MacroTracker</h1>
             <span id="user-display" class="text-sm text-slate-500 border-l pl-4 border-slate-700 uppercase tracking-tighter"></span>
           </div>
-          <button id="logout-btn" class="text-sm text-slate-400 hover:text-red-400 font-medium transition-colors">Logout</button>
+          <div class="flex items-center space-x-4">
+            <button id="settings-btn" class="p-2 text-slate-400 hover:text-indigo-400 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
+            <button id="logout-btn" class="text-sm text-slate-400 hover:text-red-400 font-medium transition-colors">Logout</button>
+          </div>
         </header>
 
         <main class="max-w-7xl mx-auto p-6 space-y-8">
@@ -54,9 +62,9 @@
 
             <!-- Yesterday's Snapshot -->
             <div id="snapshot-section" class="bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-800 flex flex-col justify-center">
-              <h2 class="text-lg font-semibold mb-4 text-slate-300">Yesterday's Snap</h2>
-              <div id="snapshot-content" class="space-y-3">
-                <p class="text-slate-500 text-sm italic">No data yet.</p>
+              <h2 class="text-lg font-semibold mb-4 text-slate-300">Latest Snapshot</h2>
+              <div id="snapshot-content" class="space-y-4">
+                <p class="text-slate-500 text-sm italic text-center">No data records found yet.</p>
               </div>
             </div>
           </section>
@@ -64,11 +72,19 @@
           <!-- Analytics Grid -->
           <section class="grid grid-cols-1 xl:grid-cols-2 gap-8">
              <div class="bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-800">
-               <h2 class="text-lg font-semibold mb-4 text-slate-300">Nutritional Macro Trends</h2>
+               <h2 class="text-lg font-semibold mb-4 text-slate-300">Macro Distribution (kcal vs g)</h2>
                <div id="macro-chart" class="h-80"></div>
              </div>
              <div class="bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-800">
-               <h2 class="text-lg font-semibold mb-4 text-slate-300">Body Composition Trends</h2>
+               <h2 class="text-lg font-semibold mb-4 text-slate-300">Caloric Intake vs Weight</h2>
+               <div id="cal-weight-chart" class="h-80"></div>
+             </div>
+             <div class="bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-800">
+               <h2 class="text-lg font-semibold mb-4 text-slate-300">Protein Efficiency (vs Lean Muscle)</h2>
+               <div id="protein-muscle-chart" class="h-80"></div>
+             </div>
+             <div class="bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-800">
+               <h2 class="text-lg font-semibold mb-4 text-slate-300">Body Composition Metrics</h2>
                <div id="composition-chart" class="h-80"></div>
              </div>
           </section>
@@ -170,6 +186,36 @@
         </div>
       </div>
 
+      <!-- Settings Modal -->
+      <div id="settings-modal" class="hidden fixed inset-0 flex items-center justify-center bg-black/80 z-50 p-4">
+        <div class="bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-800">
+           <div class="px-8 py-6 border-b border-slate-800">
+            <h3 class="text-2xl font-bold text-slate-100">User Settings</h3>
+          </div>
+          <form id="settings-form" class="p-8 space-y-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Average Daily Kcal Target</label>
+              <input type="number" id="setting-avg-kcal" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Suggested Kcal (Nutritionist)</label>
+              <input type="number" id="setting-suggested-kcal" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Protein Floor (g)</label>
+              <input type="number" id="setting-protein-floor" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Carbs Ceiling (g)</label>
+              <input type="number" id="setting-carbs-ceiling" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white">
+            </div>
+            <div class="pt-6 flex justify-end space-x-4">
+              <button type="button" id="close-settings-btn" class="px-6 py-2 text-slate-400 font-medium hover:text-slate-200">Close</button>
+              <button type="submit" class="px-8 py-2 bg-indigo-600 text-white rounded-lg font-bold shadow-lg shadow-indigo-900/40 hover:bg-indigo-700 active:scale-95 transition-all">Save Settings</button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>
