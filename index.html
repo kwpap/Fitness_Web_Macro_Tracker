@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fitness Macro Tracker</title>
+  </head>
+  <body class="bg-gray-50 text-gray-900 font-sans">
+    <div id="app" class="min-h-screen">
+      <!-- Auth Screen -->
+      <div id="auth-screen" class="hidden fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
+          <h1 class="text-3xl font-bold mb-6 text-center text-indigo-600">Fitness Dashboard</h1>
+          <form id="login-form" class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Email Address</label>
+              <input type="email" id="email" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Password</label>
+              <input type="password" id="password" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+              Sign In
+            </button>
+            <p id="auth-error" class="text-red-500 text-xs mt-2 text-center"></p>
+          </form>
+        </div>
+      </div>
+
+      <!-- Main Dashboard shell (hidden when unauthenticated) -->
+      <div id="dashboard-shell" class="hidden">
+        <!-- Hero Header -->
+        <header class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center sticky top-0 z-10">
+          <div class="flex items-center space-x-4">
+            <h1 class="text-xl font-bold text-gray-800">MacroTracker</h1>
+            <span id="user-display" class="text-sm text-gray-500 border-l pl-4 border-gray-200 uppercase tracking-tighter"></span>
+          </div>
+          <button id="logout-btn" class="text-sm text-gray-500 hover:text-red-600 font-medium transition-colors">Logout</button>
+        </header>
+
+        <main class="max-w-7xl mx-auto p-6 space-y-8">
+          <!-- Ingestion Pane -->
+          <section class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h2 class="text-lg font-semibold mb-4 text-gray-700">Ingest Raw Log</h2>
+              <textarea id="raw-log-input" rows="6" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all placeholder-gray-400" placeholder="Paste your nutritional log here..."></textarea>
+              <div class="mt-4 flex space-x-3">
+                <button id="parse-log-btn" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-all shadow-md">Parse Log</button>
+                <button id="open-dietologist-btn" class="bg-white text-indigo-600 border border-indigo-600 px-6 py-2 rounded-lg font-medium hover:bg-indigo-50 transition-all">Dietologist Input</button>
+              </div>
+            </div>
+
+            <!-- Yesterday's Snapshot -->
+            <div id="snapshot-section" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <h2 class="text-lg font-semibold mb-4 text-gray-700">Yesterday's Snap</h2>
+              <div id="snapshot-content" class="space-y-3">
+                <p class="text-gray-400 text-sm italic">No data yet.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- Analytics Grid -->
+          <section class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+               <h2 class="text-lg font-semibold mb-4 text-gray-700">Nutritional Macro Trends</h2>
+               <div id="macro-chart" class="h-80"></div>
+             </div>
+             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+               <h2 class="text-lg font-semibold mb-4 text-gray-700">Body Composition Trends</h2>
+               <div id="composition-chart" class="h-80"></div>
+             </div>
+          </section>
+        </main>
+      </div>
+
+      <!-- Modals -->
+      <!-- Parse Confirmation Modal -->
+      <div id="parser-modal" class="hidden fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-70 z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div class="px-8 py-6 border-b border-gray-100">
+            <h3 class="text-2xl font-bold text-gray-800">Review Daily Log</h3>
+          </div>
+          <div class="p-8 overflow-y-auto max-h-[70vh] space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Day ID / Title</label>
+                <input type="text" id="modal-day-id" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Calories (kcal)</label>
+                <input type="number" id="modal-calories" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Protein (g)</label>
+                <input type="number" id="modal-protein" step="0.1" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Fat (g)</label>
+                <input type="number" id="modal-fat" step="0.1" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Net Carbs (g)</label>
+                <input type="number" id="modal-net-carbs" step="0.1" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+              </div>
+               <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Fiber (g)</label>
+                <input type="number" id="modal-fiber" step="0.1" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Foods Tracked</label>
+              <textarea id="modal-foods" rows="4" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg"></textarea>
+            </div>
+          </div>
+          <div class="px-8 py-6 bg-gray-50 border-t border-gray-100 flex justify-end space-x-4">
+            <button id="cancel-modal-btn" class="px-6 py-2 text-gray-500 font-medium hover:text-gray-700">Cancel</button>
+            <button id="confirm-commit-btn" class="px-8 py-2 bg-indigo-600 text-white rounded-lg font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all">Confirm & Commit</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dietologist Modal -->
+      <div id="dietologist-modal" class="hidden fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-70 z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+           <div class="px-8 py-6 border-b border-gray-100">
+            <h3 class="text-2xl font-bold text-gray-800">Dietologist Metrics</h3>
+          </div>
+          <form id="dietologist-form" class="p-8 space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Weight (kg)</label>
+                <input type="number" step="0.1" id="weight" required class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg mt-1 block">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Lean Muscle (kg)</label>
+                <input type="number" step="0.1" id="lean-muscle" required class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg mt-1 block">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Muscle (kg)</label>
+                <input type="number" step="0.1" id="total-muscle" required class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg mt-1 block">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Body Fat Mass (kg)</label>
+                <input type="number" step="0.1" id="fat-mass" required class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg mt-1 block">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Body Fat (%)</label>
+                <input type="number" step="0.1" id="fat-percent" required class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg mt-1 block">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">BMR (kcal)</label>
+                <input type="number" id="bmr" required class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg mt-1 block">
+              </div>
+            </div>
+            <div class="pt-6 flex justify-end space-x-4">
+              <button type="button" id="close-dietologist-btn" class="px-6 py-2 text-gray-500 font-medium hover:text-gray-700">Close</button>
+              <button type="submit" class="px-8 py-2 bg-indigo-600 text-white rounded-lg font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all">Save Metrics</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
