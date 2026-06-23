@@ -226,18 +226,18 @@ function updateSnapshot(logs) {
     snapshotContent.innerHTML = `
       <div class="flex justify-between items-center">
         <span class="text-gray-500 font-medium">Calories</span>
-        <span class="text-xl font-bold">\${last.calories} <small class="text-gray-400 font-normal">kcal</small></span>
+        <span class="text-xl font-bold">${last.calories} <small class="text-gray-400 font-normal">kcal</small></span>
       </div>
       <div class="flex justify-between items-center">
         <span class="text-gray-500 font-medium">Protein</span>
-        <span class="font-bold \${proteinOk ? 'text-green-600' : 'text-orange-500'}">\${last.protein}g / \${proteinGoal}g</span>
+        <span class="font-bold ${proteinOk ? 'text-green-600' : 'text-orange-500'}">${last.protein}g / ${proteinGoal}g</span>
       </div>
       <div class="flex justify-between items-center">
         <span class="text-gray-500 font-medium">Net Carbs</span>
-        <span class="font-bold \${carbsOk ? 'text-green-600' : 'text-red-500'}">\${last.netCarbs}g / \${carbsGoal}g</span>
+        <span class="font-bold ${carbsOk ? 'text-green-600' : 'text-red-500'}">${last.netCarbs}g / ${carbsGoal}g</span>
       </div>
       <div class="mt-4 p-3 bg-gray-50 rounded text-xs text-gray-400 truncate">
-        \${last.foodsTracked || 'No foods listed'}
+        ${last.foodsTracked || 'No foods listed'}
       </div>
     `;
   }
