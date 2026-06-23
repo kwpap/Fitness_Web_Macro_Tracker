@@ -291,16 +291,17 @@ function loadLogs() {
   const logsRef = collection(db, 'daily_logs');
   const dLogsRef = collection(db, 'dietologist_logs');
 
-  const qLogs = query(logsRef, where('userId', '==', currentUser.uid), orderBy('date', 'asc'));
-  const qDLogs = query(dLogsRef, where('userId', '==', currentUser.uid), orderBy('date', 'asc'));
+  // Reverting to client-side filtering to fix the missing index error
+  const qLogs = query(logsRef, orderBy('date', 'asc'));
+  const qDLogs = query(dLogsRef, orderBy('date', 'asc'));
 
   onSnapshot(qLogs, (snapLogs) => {
-    const logs = snapLogs.docs.map(d => d.data());
+    const logs = snapLogs.docs.map(d => d.data()).filter(l => l.userId === currentUser.uid);
     onSnapshot(qDLogs, (snapDLogs) => {
-      const dLogs = snapDLogs.docs.map(d => d.data());
+      const dLogs = snapDLogs.docs.map(d => d.data()).filter(l => l.userId === currentUser.uid);
       updateAllVisuals(logs, dLogs);
     });
-  });
+  }, (error) => console.error("Error fetching logs:", error));
 }
 
 function updateAllVisuals(logs, dLogs) {
