@@ -1,7 +1,7 @@
 import './style.css';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, setDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, where, onSnapshot, serverTimestamp, setDoc, doc } from 'firebase/firestore';
 import { parseLog } from './utils/parser';
 import ApexCharts from 'apexcharts';
 
@@ -51,7 +51,7 @@ const settingsBtn = document.getElementById('settings-btn');
 const closeSettingsBtn = document.getElementById('close-settings-btn');
 const settingsForm = document.getElementById('settings-form');
 
-const snapshotContent = document.getElementById('snapshot-content');
+const historyContainer = document.getElementById('history-container');
 
 // --- Auth Logic ---
 if (auth) {
@@ -291,13 +291,13 @@ function loadLogs() {
   const logsRef = collection(db, 'daily_logs');
   const dLogsRef = collection(db, 'dietologist_logs');
 
-  const qLogs = query(logsRef, orderBy('date', 'asc'));
-  const qDLogs = query(dLogsRef, orderBy('date', 'asc'));
+  const qLogs = query(logsRef, where('userId', '==', currentUser.uid), orderBy('date', 'asc'));
+  const qDLogs = query(dLogsRef, where('userId', '==', currentUser.uid), orderBy('date', 'asc'));
 
   onSnapshot(qLogs, (snapLogs) => {
-    const logs = snapLogs.docs.map(d => d.data()).filter(l => l.userId === currentUser.uid);
+    const logs = snapLogs.docs.map(d => d.data());
     onSnapshot(qDLogs, (snapDLogs) => {
-      const dLogs = snapDLogs.docs.map(d => d.data()).filter(l => l.userId === currentUser.uid);
+      const dLogs = snapDLogs.docs.map(d => d.data());
       updateAllVisuals(logs, dLogs);
     });
   });
@@ -366,30 +366,102 @@ function updateCompChart(dLogs) {
 }
 
 function updateSnapshot(logs) {
-  if (logs.length === 0) return;
-  const last = logs[logs.length - 1];
+  if (!historyContainer) return;
+  if (logs.length === 0) {
+    historyContainer.innerHTML = `<p class="text-slate-500 text-sm italic w-full text-center">No data records found yet.</p>`;
+    return;
+  }
   
-  const proteinOk = last.protein >= userSettings.proteinFloor;
-  const carbsOk = last.netCarbs <= userSettings.carbsCeiling;
+  historyContainer.innerHTML = '';
+  
+  // Reverse to show newest first, creating swipeable cards
+  const reversedLogs = [...logs].reverse();
 
-  if (snapshotContent) {
-    snapshotContent.innerHTML = `
-      <div class="flex justify-between items-center py-2 border-b border-slate-800">
-        <span class="text-slate-400 font-medium">Calories</span>
-        <span class="text-xl font-bold text-indigo-400">${last.calories} <small class="text-slate-500 font-normal">kcal</small></span>
+  reversedLogs.forEach(log => {
+    const proteinOk = log.protein >= userSettings.proteinFloor;
+    const carbsOk = log.netCarbs <= userSettings.carbsCeiling;
+    const dateStr = log.date?.toDate ? log.date.toDate().toLocaleDateString() : 'Unknown Date';
+
+    const card = document.createElement('div');
+    card.className = "flex-none w-72 snap-center bg-slate-800 rounded-xl p-4 border border-slate-700 shadow-md";
+    card.innerHTML = `
+      <div class="mb-3 border-b border-slate-700 pb-2">
+        <h3 class="text-indigo-400 font-bold">${log.dayId || 'Daily Log'}</h3>
+        <span class="text-xs text-slate-400">${dateStr}</span>
       </div>
-      <div class="flex justify-between items-center py-2 border-b border-slate-800">
-        <span class="text-slate-400 font-medium">Protein</span>
-        <span class="font-bold ${proteinOk ? 'text-emerald-400' : 'text-amber-500'}">${last.protein}g / ${userSettings.proteinFloor}g</span>
+      <div class="flex justify-between items-center py-1">
+        <span class="text-slate-400 font-medium text-sm">Calories</span>
+        <span class="font-bold text-slate-200">${log.calories} <small class="text-slate-500 font-normal">kcal</small></span>
       </div>
-      <div class="flex justify-between items-center py-2 border-b border-slate-800">
-        <span class="text-slate-400 font-medium">Net Carbs</span>
-        <span class="font-bold ${carbsOk ? 'text-emerald-400' : 'text-rose-500'}">${last.netCarbs}g / ${userSettings.carbsCeiling}g</span>
+      <div class="flex justify-between items-center py-1">
+        <span class="text-slate-400 font-medium text-sm">Protein</span>
+        <span class="font-bold text-sm ${proteinOk ? 'text-emerald-400' : 'text-amber-500'}">${log.protein}g</span>
       </div>
-      <div class="mt-4 p-3 bg-slate-800/50 rounded-lg text-xs text-slate-400">
-        <div class="font-bold mb-1 uppercase tracking-widest text-[10px] text-slate-500">Last Meal Log</div>
-        ${last.foodsTracked || 'No foods listed'}
+      <div class="flex justify-between items-center py-1">
+        <span class="text-slate-400 font-medium text-sm">Net Carbs</span>
+        <span class="font-bold text-sm ${carbsOk ? 'text-emerald-400' : 'text-rose-500'}">${log.netCarbs}g</span>
+      </div>
+      <div class="mt-3 p-2 bg-slate-900/50 rounded-lg text-xs text-slate-400 max-h-20 overflow-y-auto" style="scrollbar-width: thin;">
+        ${log.foodsTracked || 'No foods listed'}
       </div>
     `;
-  }
+    historyContainer.appendChild(card);
+  });
 }
+
+// --- Time Range Logic ---
+document.querySelectorAll('.time-filter-btn').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    const range = e.target.dataset.range;
+    
+    // UI update
+    document.querySelectorAll('.time-filter-btn').forEach(b => {
+      b.classList.remove('bg-indigo-600', 'text-white', 'shadow-lg', 'shadow-indigo-900/40');
+      b.classList.add('bg-slate-800', 'text-slate-300');
+    });
+    // Remove custom styling if standard button clicked
+    const customBtn = document.getElementById('custom-time-btn');
+    if (customBtn) {
+      customBtn.classList.remove('bg-indigo-600', 'text-white', 'shadow-lg', 'shadow-indigo-900/40');
+      customBtn.classList.add('bg-slate-800', 'text-slate-300');
+    }
+
+    e.target.classList.remove('bg-slate-800', 'text-slate-300');
+    e.target.classList.add('bg-indigo-600', 'text-white', 'shadow-lg', 'shadow-indigo-900/40');
+    
+    updateChartsTimeRange(range);
+  });
+});
+
+document.getElementById('custom-time-btn')?.addEventListener('click', (e) => {
+  const customBtn = e.target;
+  const days = prompt("Enter number of past days to view:", "45");
+  if (days && !isNaN(days)) {
+    // UI update
+    document.querySelectorAll('.time-filter-btn').forEach(b => {
+      b.classList.remove('bg-indigo-600', 'text-white', 'shadow-lg', 'shadow-indigo-900/40');
+      b.classList.add('bg-slate-800', 'text-slate-300');
+    });
+    customBtn.classList.remove('bg-slate-800', 'text-slate-300');
+    customBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-lg', 'shadow-indigo-900/40');
+
+    updateChartsTimeRange(parseInt(days));
+  }
+});
+
+function updateChartsTimeRange(days) {
+  let minDate = undefined;
+  if (days !== 'all') {
+    minDate = new Date();
+    minDate.setDate(minDate.getDate() - parseInt(days));
+    minDate = minDate.getTime();
+  }
+  
+  const options = { xaxis: { min: minDate, max: undefined } };
+  
+  if (macroChart) macroChart.updateOptions(options);
+  if (calWeightChart) calWeightChart.updateOptions(options);
+  if (proteinMuscleChart) proteinMuscleChart.updateOptions(options);
+  if (compositionChart) compositionChart.updateOptions(options);
+}
+

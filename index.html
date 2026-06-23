@@ -48,7 +48,7 @@
           </div>
         </header>
 
-        <main class="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 sm:space-y-8">
+        <main class="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 sm:space-y-8 pb-24">
           <!-- Ingestion Pane -->
           <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
             <div class="lg:col-span-2 bg-slate-900 p-4 sm:p-6 rounded-xl shadow-sm border border-slate-800">
@@ -60,11 +60,11 @@
               </div>
             </div>
 
-            <!-- Yesterday's Snapshot -->
-            <div id="snapshot-section" class="bg-slate-900 p-4 sm:p-6 rounded-xl shadow-sm border border-slate-800 flex flex-col justify-center">
-              <h2 class="text-lg font-semibold mb-4 text-slate-300">Latest Snapshot</h2>
-              <div id="snapshot-content" class="space-y-4">
-                <p class="text-slate-500 text-sm italic text-center">No data records found yet.</p>
+            <!-- Log History (Swipeable Cards) -->
+            <div id="snapshot-section" class="bg-slate-900 p-4 sm:p-6 rounded-xl shadow-sm border border-slate-800 flex flex-col justify-center overflow-hidden">
+              <h2 class="text-lg font-semibold mb-4 text-slate-300">Log History</h2>
+              <div id="history-container" class="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 w-full" style="scrollbar-width: thin;">
+                <p class="text-slate-500 text-sm italic w-full text-center">No data records found yet.</p>
               </div>
             </div>
           </section>
@@ -89,6 +89,18 @@
              </div>
           </section>
         </main>
+
+        <!-- Bottom Time Filter Banner -->
+        <div class="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 p-3 sm:p-4 z-40">
+          <div class="max-w-7xl mx-auto flex justify-center items-center gap-2 sm:gap-4 overflow-x-auto">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-widest hidden sm:inline mr-2">Time Range:</span>
+            <button class="time-filter-btn px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs sm:text-sm font-semibold hover:bg-slate-700 transition" data-range="7">1 Week</button>
+            <button class="time-filter-btn px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs sm:text-sm font-semibold hover:bg-slate-700 transition" data-range="14">2 Weeks</button>
+            <button class="time-filter-btn px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs sm:text-sm font-semibold hover:bg-slate-700 transition" data-range="30">1 Month</button>
+            <button class="time-filter-btn px-4 py-2 rounded-lg bg-indigo-600 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-indigo-900/40" data-range="all">All Time</button>
+            <button id="custom-time-btn" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs sm:text-sm font-semibold hover:bg-slate-700 transition">Custom</button>
+          </div>
+        </div>
       </div>
 
       <!-- Modals -->
