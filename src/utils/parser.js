@@ -1,6 +1,7 @@
 export const parseLog = (text) => {
   const data = {
     dayId: "",
+    date: null,
     calories: 0,
     protein: 0,
     fat: 0,
@@ -9,10 +10,24 @@ export const parseLog = (text) => {
     foodsTracked: ""
   };
 
-  // 1. Extract Day ID (e.g., "Day 78" or "Day 58")
+  const START_DATE = new Date("2026-04-05");
+
+  // 1. Extract Day ID or Date
   const dayMatch = text.match(/Day\s+(\d+)/i);
+  const dateMatch = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+
   if (dayMatch) {
+    const dayNum = parseInt(dayMatch[1], 10);
     data.dayId = dayMatch[0];
+    const targetDate = new Date(START_DATE);
+    targetDate.setDate(START_DATE.getDate() + dayNum);
+    data.date = targetDate;
+  } else if (dateMatch) {
+    const day = parseInt(dateMatch[1], 10);
+    const month = parseInt(dateMatch[2], 10) - 1;
+    const year = parseInt(dateMatch[3], 10);
+    data.date = new Date(year, month, day);
+    data.dayId = `${day}/${month + 1}/${year}`;
   }
 
   // 2. Parse Calories / kcal

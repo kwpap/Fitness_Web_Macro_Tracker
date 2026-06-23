@@ -24,6 +24,7 @@ const parserModal = document.getElementById('parser-modal');
 const cancelModalBtn = document.getElementById('cancel-modal-btn');
 const confirmCommitBtn = document.getElementById('confirm-commit-btn');
 
+const modalDate = document.getElementById('modal-date');
 const modalDayId = document.getElementById('modal-day-id');
 const modalCalories = document.getElementById('modal-calories');
 const modalProtein = document.getElementById('modal-protein');
@@ -80,6 +81,12 @@ parseLogBtn?.addEventListener('click', () => {
   if (!text.trim()) return;
   const parsed = parseLog(text);
   
+  if (parsed.date) {
+    modalDate.value = parsed.date.toISOString().split('T')[0];
+  } else {
+    modalDate.value = new Date().toISOString().split('T')[0];
+  }
+  
   modalDayId.value = parsed.dayId;
   modalCalories.value = parsed.calories;
   modalProtein.value = parsed.protein;
@@ -94,8 +101,10 @@ parseLogBtn?.addEventListener('click', () => {
 cancelModalBtn?.addEventListener('click', () => parserModal.classList.add('hidden'));
 
 confirmCommitBtn?.addEventListener('click', async () => {
+  const selectedDate = new Date(modalDate.value);
   const logData = {
     dayId: modalDayId.value,
+    date: selectedDate,
     calories: parseInt(modalCalories.value) || 0,
     protein: parseFloat(modalProtein.value) || 0,
     fat: parseFloat(modalFat.value) || 0,
@@ -107,7 +116,7 @@ confirmCommitBtn?.addEventListener('click', async () => {
   };
 
   try {
-    const docId = logData.dayId.replace(/\s+/g, '_').toLowerCase() || new Date().toISOString();
+    const docId = `log_${selectedDate.toISOString().split('T')[0]}`;
     await setDoc(doc(db, 'daily_logs', docId), logData);
     parserModal.classList.add('hidden');
     rawLogInput.value = '';
@@ -118,12 +127,17 @@ confirmCommitBtn?.addEventListener('click', async () => {
 });
 
 // --- Dietologist Logic ---
-openDietologistBtn?.addEventListener('click', () => dietologistModal.classList.remove('hidden'));
+openDietologistBtn?.addEventListener('click', () => {
+  document.getElementById('diet-date').value = new Date().toISOString().split('T')[0];
+  dietologistModal.classList.remove('hidden');
+});
 closeDietologistBtn?.addEventListener('click', () => dietologistModal.classList.add('hidden'));
 
 dietologistForm?.addEventListener('submit', async (e) => {
   e.preventDefault();
+  const selectedDate = new Date(document.getElementById('diet-date').value);
   const dData = {
+    date: selectedDate,
     weight: parseFloat(document.getElementById('weight').value),
     leanMuscle: parseFloat(document.getElementById('lean-muscle').value),
     totalMuscle: parseFloat(document.getElementById('total-muscle').value),
@@ -135,7 +149,7 @@ dietologistForm?.addEventListener('submit', async (e) => {
   };
 
   try {
-    const docId = `d_${new Date().toISOString().split('T')[0]}`;
+    const docId = `d_${selectedDate.toISOString().split('T')[0]}`;
     await setDoc(doc(db, 'dietologist_logs', docId), dData);
     dietologistModal.classList.add('hidden');
     dietologistForm.reset();
@@ -176,18 +190,16 @@ function initCharts() {
 }
 
 function loadLogs() {
-  const qLogs = query(collection(db, 'daily_logs'), orderBy('timestamp', 'asc'));
+  const qLogs = query(collection(db, 'daily_logs'), orderBy('date', 'asc'));
   onSnapshot(qLogs, (snapshot) => {
-    const logs = [];
-    snapshot.forEach(doc => logs.push(doc.data()));
+    const logs = snapshot.docs.map(doc => doc.data());
     updateMacroChart(logs.filter(l => l.userId === currentUser.uid));
     updateSnapshot(logs.filter(l => l.userId === currentUser.uid));
   });
 
-  const qDiet = query(collection(db, 'dietologist_logs'), orderBy('timestamp', 'asc'));
+  const qDiet = query(collection(db, 'dietologist_logs'), orderBy('date', 'asc'));
   onSnapshot(qDiet, (snapshot) => {
-    const dLogs = [];
-    snapshot.forEach(doc => dLogs.push(doc.data()));
+    const dLogs = snapshot.docs.map(doc => doc.data());
     updateCompChart(dLogs.filter(l => l.userId === currentUser.uid));
   });
 }
@@ -195,10 +207,10 @@ function loadLogs() {
 function updateMacroChart(logs) {
   if (!macroChart) return;
   const series = [
-    { name: 'Kcal', data: logs.map(l => ({ x: l.timestamp?.toDate() || new Date(), y: l.calories })) },
-    { name: 'Protein', data: logs.map(l => ({ x: l.timestamp?.toDate() || new Date(), y: l.protein })) },
-    { name: 'Net Carbs', data: logs.map(l => ({ x: l.timestamp?.toDate() || new Date(), y: l.netCarbs })) },
-    { name: 'Fat', data: logs.map(l => ({ x: l.timestamp?.toDate() || new Date(), y: l.fat })) }
+    { name: 'Kcal', data: logs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.calories })) },
+    { name: 'Protein', data: logs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.protein })) },
+    { name: 'Net Carbs', data: logs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.netCarbs })) },
+    { name: 'Fat', data: logs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.fat })) }
   ];
   macroChart.updateSeries(series);
 }
@@ -206,9 +218,9 @@ function updateMacroChart(logs) {
 function updateCompChart(dLogs) {
   if (!compositionChart) return;
   const series = [
-    { name: 'Weight', type: 'line', data: dLogs.map(l => ({ x: l.timestamp?.toDate() || new Date(), y: l.weight })) },
-    { name: 'Lean Muscle', type: 'line', data: dLogs.map(l => ({ x: l.timestamp?.toDate() || new Date(), y: l.leanMuscle })) },
-    { name: 'Body Fat %', type: 'area', data: dLogs.map(l => ({ x: l.timestamp?.toDate() || new Date(), y: l.fatPercent })) }
+    { name: 'Weight', type: 'line', data: dLogs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.weight })) },
+    { name: 'Lean Muscle', type: 'line', data: dLogs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.leanMuscle })) },
+    { name: 'Body Fat %', type: 'area', data: dLogs.map(l => ({ x: l.date?.toDate() || new Date(), y: l.fatPercent })) }
   ];
   compositionChart.updateSeries(series);
 }
